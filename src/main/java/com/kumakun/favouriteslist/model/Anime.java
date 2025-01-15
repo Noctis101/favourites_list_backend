@@ -1,36 +1,37 @@
 package com.kumakun.favouriteslist.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.UUID;
 
-@Entity
-@Data
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
-@Table(name = "anime")
-public class Anime {
+@Getter
+@Setter
+public class Anime implements Persistable<UUID> {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
-    @Column(nullable = false, unique = true)
     private String title;
-    @Column(nullable = false, name = "image_url")
+    @Column("image_url")
     private String imageUrl;
-    @Column(nullable = false, length = 4000)
     private String synopsis;
-    @Column (nullable = false)
     private int episodes;
-    @Column (nullable = false)
     private String url;
+
+    @Transient
+    @Builder.Default
+    private boolean isNewEntry = true;
+
+    public boolean isNew() {
+        return isNewEntry;
+    }
 }

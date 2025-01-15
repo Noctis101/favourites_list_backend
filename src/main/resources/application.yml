@@ -3,24 +3,11 @@ spring:
     active: local # Development is ongoing
   application:
     name: favouriteslist
-  jpa:
-    database: POSTGRESQL
-    show-sql: true
-    hibernate:
-      ddl-auto: none
-    properties:
-      jakarta:
-        persistence:
-          schema-generation:
-            scripts:
-              action: none
-              create-target: create.sql
-              create-source: metadata
-jakarta:
-  persistence:
-    schema-generation:
-      create-source: metadata
-      drop-source: metadata
+  sql:
+    init:
+      mode: always # ensure DB script is constructed to generate table only once
+      schema-locations: optional:classpath:schema.sql
+      data-locations: optional:classpath:data.sql
 jikan:
   api:
     url: "https://api.jikan.moe/v4"

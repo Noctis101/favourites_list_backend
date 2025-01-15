@@ -1,21 +1,15 @@
 package com.kumakun.favouriteslist.client.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.util.List;
 
-@Getter
-@Setter
-@AllArgsConstructor
+@Data
 public class JikanResponseDTO {
-    public List<AnimeData> data;
+    private List<AnimeData> data;
 
-    @Getter
-    @Setter
-    @AllArgsConstructor
+    @Data
     public static class AnimeData {
         private String title;
         private Images images;
@@ -24,16 +18,12 @@ public class JikanResponseDTO {
         private String url;
     }
 
-    @Getter
-    @Setter
-    @AllArgsConstructor
+    @Data
     public static class Images {
         private Jpg jpg;
     }
 
-    @Getter
-    @Setter
-    @AllArgsConstructor
+    @Data
     public static class Jpg {
         @JsonProperty("large_image_url")
         private String largeImageUrl;

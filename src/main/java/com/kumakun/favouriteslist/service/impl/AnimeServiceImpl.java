@@ -6,30 +6,23 @@ import com.kumakun.favouriteslist.dto.AnimeDTO;
 import com.kumakun.favouriteslist.model.Anime;
 import com.kumakun.favouriteslist.repository.AnimeRepository;
 import com.kumakun.favouriteslist.service.AnimeService;
-import jakarta.transaction.Transactional;
+
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
  * Service to retrieve anime data obtained from Jikan.
  * @author kumakun
  * */
+@Slf4j
 @Service
 public class AnimeServiceImpl implements AnimeService {
-
-    /**
-     * TODO: Implement AnimeRepository using ReactiveCRUDRepository for complete non-blocking functionality.
-     *       True Reactive programming is achieved through this interface and accounts for proper scalability
-     *       and performance. The current implementation is an attempt to implement JpaRepository in a
-     *       non-blocking way.
-     * */
 
     private final JikanApiClient jikanApiClient;
     private final AnimeRepository animeRepository;
@@ -39,41 +32,14 @@ public class AnimeServiceImpl implements AnimeService {
         this.animeRepository = animeRepository;
     }
 
-    /**
-     * Retrieve anime saved to database
-     * @return Details of anime saved to database
-     * */
-    @Override
-    public Mono<List<AnimeDTO>> retrieveAnimeList() {
-                // Executes the blocking call in a separate thread
-        return Mono.fromCallable(this::fetchAnimeList)
-                // Use a bounded thread pool
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMapMany(Flux::fromIterable)
-                .map(anime -> new AnimeDTO(
-                        anime.getTitle(),
-                        anime.getImageUrl(),
-                        anime.getSynopsis(),
-                        anime.getEpisodes(),
-                        anime.getUrl()
-                ))
-                .collectList();
-    }
-
-    /**
-     * Make asynchronous calls to Jikan's MyAnimeList API to retrieve details
-     * on anime in submitted list and save to database.
-     * @param animeTitles - List of anime titles to be added to database
-     * @return Details of anime saved to database
-     * */
     @Override
     public Mono<List<AnimeDTO>> addAnimeList(List<String> animeTitles) {
 
-        //TODO: Introduce error handling
         return Flux.fromIterable(animeTitles)
                 .delayElements(Duration.ofMillis(5000))
                 // Handle asynchronous calls to the API
                 .flatMap(title -> jikanApiClient.getAnimeData(title)
+                        .doOnNext(response -> log.info("Successfully retrieved data for title: {}", title))
                         // Method reference extracts the data list
                         .map(JikanResponseDTO::getData)
                         // Flatten list into individual anime items
@@ -85,46 +51,55 @@ public class AnimeServiceImpl implements AnimeService {
                                 animeData.getEpisodes(),
                                 animeData.getUrl()
                         ))
+                        .onErrorResume(error -> {
+                            // Log and continue with an empty Flux for this title
+                            log.error("Error fetching data for title: {}", title, error);
+                            return Flux.empty();
+                        })
                 )
                 // Access constructed AnimeDTO
                 .flatMap(animeDTO -> {
-                    Anime anime = new Anime(
-                            UUID.randomUUID(),
-                            animeDTO.getTitle(),
-                            animeDTO.getImageUrl(),
-                            animeDTO.getSynopsis(),
-                            animeDTO.getEpisodes(),
-                            animeDTO.getUrl()
-                    );
+                    Anime anime = Anime.builder()
+                            .id(UUID.randomUUID())
+                            .title(animeDTO.getTitle())
+                            .imageUrl(animeDTO.getImageUrl())
+                            .synopsis(animeDTO.getSynopsis())
+                            .episodes(animeDTO.getEpisodes())
+                            .url(animeDTO.getUrl())
+                            .build();
 
-                    // Ensures the blocking operation, saveAnime(), is executed
-                    // in a non-blocking way within the reactive pipeline
-                    return Mono.fromCallable(() -> saveAnime(anime))
-                            .subscribeOn(Schedulers.boundedElastic()) // Use separate thread
-                            .thenReturn((animeDTO));
+                    return animeRepository.save(anime)
+                            .doOnSuccess(savedAnime -> log.info("Successfully saved anime: {}", savedAnime.getTitle()))
+                            .thenReturn(animeDTO)
+                            .onErrorResume(error -> {
+                                // Log and continue with an empty Mono for this AnimeDTO
+                                log.error("Error saving Anime: {}", animeDTO.getTitle(), error);
+                                return Mono.empty();
+                            });
                 })
-                // Collects all the AnimeDTO objects into a Mono object
+                // Collect all the AnimeDTO objects into a Mono object
                 .collectList();
     }
 
     @Override
-    public Optional<Anime> findAnimeByTitle(String title) {
-        return animeRepository.findByTitle(title);
+    public Anime findAnimeByTitle(String title) {
+        Anime anime = animeRepository.findByTitle(title).orElseThrow();
+        anime.setNewEntry(false);
+        return anime;
     }
 
     @Override
-    @Transactional
-    public Anime saveAnime(Anime anime) {
+    public Mono<Anime> saveAnime(Anime anime) {
         return animeRepository.save(anime);
     }
 
     @Override
-    public List<Anime> fetchAnimeList() {
+    public Flux<Anime> fetchAnimeList() {
         return animeRepository.findAll();
     }
 
     @Override
-    public void deleteAnimeByUuid(UUID id) {
-        animeRepository.deleteById(id);
+    public Mono<Void> deleteAnimeByUuid(UUID id) {
+        return animeRepository.deleteById(id);
     }
 }

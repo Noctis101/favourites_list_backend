@@ -1,6 +1,7 @@
 package com.kumakun.favouriteslist.controller;
 
 import com.kumakun.favouriteslist.dto.AnimeDTO;
+import com.kumakun.favouriteslist.model.Anime;
 import com.kumakun.favouriteslist.service.AnimeService;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -25,8 +27,8 @@ public class AnimeController {
     }
 
     @GetMapping
-    public Mono<List<AnimeDTO>> getAllFavouriteAnime() {
-        return animeService.retrieveAnimeList();
+    public Flux<Anime> getAllFavouriteAnime() {
+        return animeService.fetchAnimeList();
     }
 
     @PostMapping
